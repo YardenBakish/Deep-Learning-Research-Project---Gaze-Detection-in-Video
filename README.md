@@ -9,7 +9,7 @@ https://colab.research.google.com/drive/1ao05o6Wnu0M9p2lr_IbnPCAVwzYBwMzl?authus
 
 ## Demo
 To run a demo Please click on the provided colab link above. Simply connect to a GPU runtime and run the (only) cell.
-You will notice in your File directory that a new directory called 'output'  has been created, this directory contains a visualization for gaze detection for all of the frames provied at 'input' directory.
+You will notice in your File directory that a new directory called 'output'  has been created. this directory contains a visualization for gaze detection for all of the frames provied at 'input' directory.
 
 **Input Arguments**
 
