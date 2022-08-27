@@ -5,7 +5,7 @@ Deep Learning Workshop Github repository
 The repository contains the code and documentation for Deep-Learning Workshop
 
 ## Demo Colab Link:
-https://colab.research.google.com/drive/1ao05o6Wnu0M9p2lr_IbnPCAVwzYBwMzl?authuser=1#scrollTo=YuviXs7BXvmE
+https://colab.research.google.com/drive/14ua6sTa-IgaPJZPLxqAvN3LhQx2SmI1J#scrollTo=G6PLExr7G728
 
 ## Demo
 To run a demo Please click on the provided colab link above. Simply connect to a GPU runtime and run the (only) cell.
