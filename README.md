@@ -1,4 +1,4 @@
-# Deep-Learning-Workshop - In Proggress - will up and running by 14.9.22
+# Deep-Learning-Workshop - In Proggress - anticipated date: 14.9.22
 
 # Deep-Learning-Workshop - Depth-Based Gaze Target Detection in Video
 Deep Learning Workshop Github repository
