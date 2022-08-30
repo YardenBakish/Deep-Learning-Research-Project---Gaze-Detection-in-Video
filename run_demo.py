@@ -40,7 +40,7 @@ if args.person == "left":
   csv_path = "input/s00.txt"
 else:
   csv_path = "input/s01.txt"
-model_weights = "/content/attention_proggress/video_gaze_depth_eyes_best.pth.tar"
+model_weights = "workshop_model.pth.tar"
 
 column_names = ['path', 'xmin', 'ymin', 'xmax', 'ymax', 'gazex', 'gazey', 'left_x_min', 'left_y_min','left_x_max','left_y_max', 'right_x_min', 'right_y_min','right_x_max','right_y_max']
 df = pd.read_csv(csv_path, sep=',', names=column_names, index_col=False, encoding="utf-8-sig")
