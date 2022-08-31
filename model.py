@@ -528,18 +528,6 @@ class Complete_Model(nn.Module):
         scene_feat = self.layer5_scene(im)
 
 
-        """depth_im = torch.cat((depth_images, head), dim=1)
-        depth_im = self.conv1_scene(depth_im)
-        depth_im = self.bn1_scene(depth_im)
-        depth_im = self.relu(depth_im)
-        depth_im = self.maxpool(depth_im)
-        depth_im = self.layer1_scene(depth_im)
-        depth_im = self.layer2_scene(depth_im)
-        depth_im = self.layer3_scene(depth_im)
-        depth_im = self.layer4_scene(depth_im)
-        depth_feat = self.layer5_scene(depth_im)
-        
-        attn_weights = torch.mul(attn_weights, depth_feat)"""
         attn_applied_scene_feat = torch.mul(attn_weights, scene_feat) # (N, 1, 7, 7) # applying attention weights on scene feat
 
         scene_face_feat = torch.cat((attn_applied_scene_feat, face_feat), 1)
