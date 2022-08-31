@@ -288,22 +288,7 @@ class Static_Model(nn.Module):
         im = self.layer4_scene(im)
         scene_feat = self.layer5_scene(im)
 
-        """depth_im = torch.cat((depth_maps, head), dim=1)
-        depth_im = self.conv1_scene(depth_im)
-        depth_im = self.bn1_scene(depth_im)
-        depth_im = self.relu(depth_im)
-        depth_im = self.maxpool(depth_im)
-        depth_im = self.layer1_scene(depth_im)
-        depth_im = self.layer2_scene(depth_im)
-        depth_im = self.layer3_scene(depth_im)
-        depth_im = self.layer4_scene(depth_im)
-        depth_feat = self.layer5_scene(depth_im)"""
-        # attn_weights = torch.ones(attn_weights.shape)/49.0
-        #print (attn_weights.shape)
-        #print(depth_feat.shape)
-        #print(scene_feat.shape)
 
-        #attn_weights = torch.mul(attn_weights, depth_feat)
  
         attn_applied_scene_feat = torch.mul(attn_weights, scene_feat) # (N, 1, 7, 7) # applying attention weights on scene feat
 
