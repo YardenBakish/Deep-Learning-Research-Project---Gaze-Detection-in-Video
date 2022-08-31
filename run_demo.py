@@ -34,15 +34,15 @@ parser.add_argument("--person", default = "left", choices = ["left", "right"], t
 args = parser.parse_args()
 
 
-annotations_dir = "input/images/"
-imgs_dir  = "input/images"
-depth_imgs_dir = "input/DepthMaps/"
+annotations_dir = "data_demo/images/"
+imgs_dir  = "data_demo/images"
+depth_imgs_dir = "data_demo/DepthMaps/"
 output_dir = "output/"
 csv_path = ""
 if args.person == "left":
-  csv_path = "input/s00.txt"
+  csv_path = "data_demo/s00.txt"
 else:
-  csv_path = "input/s01.txt"
+  csv_path = "data_demo/s01.txt"
 model_weights = "workshop_model.pth.tar"
 
 column_names = ['path', 'xmin', 'ymin', 'xmax', 'ymax', 'gazex', 'gazey', 'left_x_min', 'left_y_min','left_x_max','left_y_max', 'right_x_min', 'right_y_min','right_x_max','right_y_max']
