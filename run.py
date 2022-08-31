@@ -8,7 +8,8 @@ import torch
 from torchvision import transforms
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
-from model import Static_Model, Complete_Model
+from VideoAttTargetModel import Complete_Model
+from GazeFollowModel import Static_Model
 from GazeFollowLoader import GazeFollowLoader
 from VideoAttTarget_loader import VideoAttTargetLoader
 from torch.nn.utils.rnn import pack_padded_sequence, PackedSequence, pad_packed_sequence
