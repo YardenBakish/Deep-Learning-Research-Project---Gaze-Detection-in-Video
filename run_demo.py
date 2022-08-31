@@ -21,6 +21,9 @@ from utils import myutils, evaluation
 import pandas as pd
 import argparse 
 import subprocess
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
 cmd = f'mkdir output/'
@@ -75,7 +78,7 @@ model.train(False)
 chunk_size = 3
 
 with torch.no_grad():
-  faces, left_eyes, right_eyes, images, depth_images, head_channels = [], [], [], [], [], []
+  faces, left_eyes, right_eyes, images, depth_images, head_locations = [], [], [], [], [], []
   for ind in df.index:    
     row = df.iloc[[ind]]
     #print(row['path'].iloc[0])
@@ -118,7 +121,7 @@ with torch.no_grad():
       left_eye = Image.new("RGB", (36, 60), "black")
       right_eye = Image.new("RGB", (36, 60), "black")
     # Head channel image
-    head_channel = imutils.get_head_box_channel(face_x1, face_y1, face_x2, face_y2, width, height,
+    head_location = imutils.get_head_box_channel(face_x1, face_y1, face_x2, face_y2, width, height,
                                                 resolution=224, coordconv=False).unsqueeze(0)
     img = transform1(img)
     face = transform1(face)
@@ -129,7 +132,7 @@ with torch.no_grad():
     faces.append(face)
     depth_images.append(img_depth)
     images.append(img)
-    head_channels.append(head_channel)
+    head_locations.append(head_location)
     left_eyes.append(left_eye)
     right_eyes.append(right_eye)
 
@@ -138,27 +141,27 @@ with torch.no_grad():
   right_eyes = torch.stack(right_eyes)
   images = torch.stack(images)
   depth_images = torch.stack(depth_images)
-  head_channels = torch.stack(head_channels)
+  head_locations = torch.stack(head_locations)
 
   faces = faces[None, :]
   left_eyes = left_eyes[None, :]
   right_eyes = right_eyes[None, :]
   images = images[None, :]
   depth_images = depth_images[None, :]
-  head_channels = head_channels[None, :]
+  head_locations = head_locations[None, :]
   lengths = [df.shape[0]]
 
 
-  X_pad_data_img =  pack_padded_sequence(images, lengths, batch_first=True)
-  X_pad_data_img, X_pad_sizes = X_pad_data_img.data, X_pad_data_img.batch_sizes
+  frame_sequence =  pack_padded_sequence(images, lengths, batch_first=True)
+  frame_sequence, pad_sizes = frame_sequence.data, frame_sequence.batch_sizes
 
-  X_pad_data_img_depth =  pack_padded_sequence(depth_images, lengths, batch_first=True)
-  X_pad_data_img_depth, X_pad_depth_sizes = X_pad_data_img_depth.data, X_pad_data_img_depth.batch_sizes
+  depth_frame_sequence =  pack_padded_sequence(depth_images, lengths, batch_first=True)
+  depth_frame_sequence, pad_depth_sizes = depth_frame_sequence.data, depth_frame_sequence.batch_sizes
 
-  X_pad_data_head= (pack_padded_sequence(head_channels, lengths, batch_first=True)).data
-  X_pad_data_face= (pack_padded_sequence(faces, lengths, batch_first=True)).data
-  X_pad_data_left_eye= (pack_padded_sequence(left_eyes, lengths, batch_first=True)).data
-  X_pad_data_right_eye= (pack_padded_sequence(right_eyes, lengths, batch_first=True)).data
+  head_loc_sequence= (pack_padded_sequence(head_locations, lengths, batch_first=True)).data
+  face_sequence= (pack_padded_sequence(faces, lengths, batch_first=True)).data
+  left_eye_sequence= (pack_padded_sequence(left_eyes, lengths, batch_first=True)).data
+  right_eye_sequence= (pack_padded_sequence(right_eyes, lengths, batch_first=True)).data
   hx = (torch.zeros((2, 1, 512, 7, 7)).cuda(0),
         torch.zeros((2, 1, 512, 7, 7)).cuda(0)) # (num_layers, batch_size, feature dims)
   last_index = 0
@@ -167,26 +170,26 @@ with torch.no_grad():
   for i in range(0, lengths[0], chunk_size):
       # In this for loop, we read batched images across the time dimension
           # we step forward N = chunk_size frames args
-      X_pad_sizes_slice = X_pad_sizes[i:i + chunk_size]
-      curr_length = np.sum(X_pad_sizes_slice.cpu().detach().numpy())
+      pad_sizes_slice = pad_sizes[i:i + chunk_size]
+      curr_length = np.sum(pad_sizes_slice.cpu().detach().numpy())
       # slice padded data
-      X_pad_data_slice_img = X_pad_data_img[last_index:last_index + curr_length].cuda(0)
-      X_pad_data_slice_depth_img = X_pad_data_img_depth[last_index:last_index + curr_length].cuda(0)
-      X_pad_data_slice_head = X_pad_data_head[last_index:last_index + curr_length].cuda(0)
-      X_pad_data_slice_face = X_pad_data_face[last_index:last_index + curr_length].cuda(0)
-      X_pad_data_slice_left_eye = X_pad_data_left_eye[last_index:last_index + curr_length].cuda(0)
-      X_pad_data_slice_right_eye = X_pad_data_right_eye[last_index:last_index + curr_length].cuda(0)
+      frame_sequence_slice = frame_sequence[last_index:last_index + curr_length].cuda(0)
+      depth_frame_sequence_slice = depth_frame_sequence[last_index:last_index + curr_length].cuda(0)
+      head_loc_sequence_slice = head_loc_sequence[last_index:last_index + curr_length].cuda(0)
+      face_sequence_slice = face_sequence[last_index:last_index + curr_length].cuda(0)
+      left_eye_sequence_slice = left_eye_sequence[last_index:last_index + curr_length].cuda(0)
+      right_eye_sequence_slice = right_eye_sequence[last_index:last_index + curr_length].cuda(0)
       last_index += curr_length
 
       # detach previous hidden states to stop gradient flow
-      prev_hx = (hx[0][:, :min(X_pad_sizes_slice[0], previous_hx_size), :, :, :].detach(),
-                  hx[1][:, :min(X_pad_sizes_slice[0], previous_hx_size), :, :, :].detach())
+      prev_hx = (hx[0][:, :min(pad_sizes_slice[0], previous_hx_size), :, :, :].detach(),
+                  hx[1][:, :min(pad_sizes_slice[0], previous_hx_size), :, :, :].detach())
 
       # forward pass
-      deconv, inout_val, hx = model(X_pad_data_slice_img, X_pad_data_slice_depth_img, X_pad_data_slice_head, X_pad_data_slice_face, \
-                                                X_pad_data_slice_left_eye, X_pad_data_slice_right_eye, hidden_scene=prev_hx, batch_sizes=X_pad_sizes_slice)
+      deconv, inout_val, hx = model(frame_sequence_slice, depth_frame_sequence_slice, head_loc_sequence_slice, face_sequence_slice, \
+                                                left_eye_sequence_slice, right_eye_sequence_slice, hidden_scene=prev_hx, batch_sizes=pad_sizes_slice)
       #print(deconv.shape, inout_val.shape)
-      previous_hx_size = X_pad_sizes_slice[-1]
+      previous_hx_size = pad_sizes_slice[-1]
       for j in range(deconv.shape[0]):
         # heatmap modulation
         new_id = i +j
@@ -213,7 +216,7 @@ with torch.no_grad():
 
         ax = plt.gca()
         ax.add_patch(rect)
-        if inout < 100:
+        if inout < 200:
           pred_x, pred_y = evaluation.argmax_pts(raw_hm)
           norm_p = [pred_x/64, pred_y/64]
           circ = patches.Circle((norm_p[0]*width, norm_p[1]*height), height/50.0, facecolor=(0,1,0), edgecolor='none')
