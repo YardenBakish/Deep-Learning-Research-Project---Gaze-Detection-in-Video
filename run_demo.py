@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import glob
 import matplotlib.patches as patches
-from model import Complete_Model
+from VideoAttTargetModel import Complete_Model
 from torchvision import transforms
 from utils import imutils
 from utils import myutils, evaluation
@@ -233,5 +233,6 @@ with torch.no_grad():
           plt.imshow(norm_map, cmap = 'rainbow', alpha=0.2, vmin=0, vmax=255)
         plt.tight_layout(pad=0.00)
         plt.savefig(f"output/{'%03d' % new_id}", bbox_inches="tight")
+        print(f"output/{'%03d' % new_id} saved")
    
-
+print("DONE")
