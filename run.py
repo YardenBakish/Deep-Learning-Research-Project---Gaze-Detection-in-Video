@@ -401,9 +401,9 @@ def trainVideoAttTarget(model, train_loader,mse_loss, bcelogit_loss, optimizer, 
             module.eval()
 
     frame_sequence =  pack_padded_sequence(frame, lengths, batch_first=True)
-    frame_sequence, X_pad_sizes = frame_sequence.data, frame_sequence.batch_sizes
+    frame_sequence, pad_sizes = frame_sequence.data, frame_sequence.batch_sizes
     depth_frame_sequence =  pack_padded_sequence(depth_frame, lengths, batch_first=True)
-    depth_frame_sequence, X_pad_depth_sizes = depth_frame_sequence.data, depth_frame_sequence.batch_sizes
+    depth_frame_sequence, pad_depth_sizes = depth_frame_sequence.data, depth_frame_sequence.batch_sizes
     head_loc_sequence= (pack_padded_sequence(head_location, lengths, batch_first=True)).data
     face_sequence= (pack_padded_sequence(face, lengths, batch_first=True)).data
     left_eye_sequence= (pack_padded_sequence(left_eye, lengths, batch_first=True)).data
@@ -419,8 +419,8 @@ def trainVideoAttTarget(model, train_loader,mse_loss, bcelogit_loss, optimizer, 
     for i in range(0, lengths[0], chunk_size):
       # In this for loop, we read batched images across the time dimension
           # we step forward N = chunk_size frames args
-      X_pad_sizes_slice = X_pad_sizes[i:i + chunk_size]
-      curr_length = np.sum(X_pad_sizes_slice.cpu().detach().numpy())
+      pad_sizes_slice = pad_sizes[i:i + chunk_size]
+      curr_length = np.sum(pad_sizes_slice.cpu().detach().numpy())
       # slice padded data
       frame_sequence_slice = frame_sequence[last_index:last_index + curr_length].cuda(device)
       depth_frame_sequence_slice = depth_frame_sequence[last_index:last_index + curr_length].cuda(device)
@@ -433,12 +433,12 @@ def trainVideoAttTarget(model, train_loader,mse_loss, bcelogit_loss, optimizer, 
       last_index += curr_length
 
       # detach previous hidden states to stop gradient flow
-      prev_hx = (hx[0][:, :min(X_pad_sizes_slice[0], previous_hx_size), :, :, :].detach(),
-                  hx[1][:, :min(X_pad_sizes_slice[0], previous_hx_size), :, :, :].detach())
+      prev_hx = (hx[0][:, :min(pad_sizes_slice[0], previous_hx_size), :, :, :].detach(),
+                  hx[1][:, :min(pad_sizes_slice[0], previous_hx_size), :, :, :].detach())
 
       # forward pass
       deconv, inout_val, hx = model(frame_sequence_slice, depth_frame_sequence_slice, head_loc_sequence_slice, face_sequence_slice, \
-                                                      left_eye_sequence_slice, right_eye_sequence_slice, hidden_scene=prev_hx, batch_sizes=X_pad_sizes_slice)
+                                                      left_eye_sequence_slice, right_eye_sequence_slice, hidden_scene=prev_hx, batch_sizes=pad_sizes_slice)
 
 
         #print(type(deconv), type(inout_val), type(hx))
@@ -462,7 +462,7 @@ def trainVideoAttTarget(model, train_loader,mse_loss, bcelogit_loss, optimizer, 
       optimizer.step()
       optimizer.zero_grad()
 
-      previous_hx_size = X_pad_sizes_slice[-1]
+      previous_hx_size = pad_sizes_slice[-1]
 
       
       print("Epoch:{:04d}\tstep:{:06d}/{:06d}\ttraining loss: (l2){:.4f} (Xent){:.4f}".format(ep, batch+1, len(train_loader), l2_loss, BCE_loss))
