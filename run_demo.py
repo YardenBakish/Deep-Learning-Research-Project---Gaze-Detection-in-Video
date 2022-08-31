@@ -235,4 +235,4 @@ with torch.no_grad():
         plt.savefig(f"output/{'%03d' % new_id}", bbox_inches="tight")
         print(f"output/{'%03d' % new_id} saved")
    
-print("DONE")
+print("running demo has finished")
