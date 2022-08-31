@@ -388,7 +388,7 @@ def trainVideoAttTarget(model, train_loader,mse_loss, bcelogit_loss, optimizer, 
   total_loss = 0
   batch_size = 8
   chunk_size = 3
-  for batch, (img, depth_img, face, left_eye, right_eye, head_channel, gaze_heatmap, inout_label, lengths) in enumerate(train_loader):
+  for batch, (frame, depth_frame, face, left_eye, right_eye, head_location, gt_heatmap, gt_inout, lengths) in enumerate(train_loader):
     model.train(True)
     # freeze batchnorm layers
     for module in model.modules():
@@ -399,18 +399,16 @@ def trainVideoAttTarget(model, train_loader,mse_loss, bcelogit_loss, optimizer, 
         if isinstance(module, torch.nn.modules.BatchNorm3d):
             module.eval()
 
-    X_pad_data_img =  pack_padded_sequence(img, lengths, batch_first=True)
-    X_pad_data_img, X_pad_sizes = X_pad_data_img.data, X_pad_data_img.batch_sizes
-
-    X_pad_data_img_depth =  pack_padded_sequence(depth_img, lengths, batch_first=True)
-    X_pad_data_img_depth, X_pad_depth_sizes = X_pad_data_img_depth.data, X_pad_data_img_depth.batch_sizes
-
-    X_pad_data_head= (pack_padded_sequence(head_channel, lengths, batch_first=True)).data
-    X_pad_data_face= (pack_padded_sequence(face, lengths, batch_first=True)).data
-    X_pad_data_left_eye= (pack_padded_sequence(left_eye, lengths, batch_first=True)).data
-    X_pad_data_right_eye= (pack_padded_sequence(right_eye, lengths, batch_first=True)).data
-    Y_pad_data_heatmap= (pack_padded_sequence(gaze_heatmap, lengths, batch_first=True)).data
-    Y_pad_data_inout = (pack_padded_sequence(inout_label, lengths, batch_first=True)).data
+    frame_sequence =  pack_padded_sequence(frame, lengths, batch_first=True)
+    frame_sequence, X_pad_sizes = frame_sequence.data, frame_sequence.batch_sizes
+    depth_frame_sequence =  pack_padded_sequence(depth_frame, lengths, batch_first=True)
+    depth_frame_sequence, X_pad_depth_sizes = depth_frame_sequence.data, depth_frame_sequence.batch_sizes
+    head_loc_sequence= (pack_padded_sequence(head_location, lengths, batch_first=True)).data
+    face_sequence= (pack_padded_sequence(face, lengths, batch_first=True)).data
+    left_eye_sequence= (pack_padded_sequence(left_eye, lengths, batch_first=True)).data
+    right_eye_sequence= (pack_padded_sequence(right_eye, lengths, batch_first=True)).data
+    gt_heatmap_sequence= (pack_padded_sequence(gt_heatmap, lengths, batch_first=True)).data
+    gt_inout_sequence = (pack_padded_sequence(gt_inout, lengths, batch_first=True)).data
 
     hx = (torch.zeros((num_lstm_layers, batch_size, 512, 7, 7)).cuda(device),
           torch.zeros((num_lstm_layers, batch_size, 512, 7, 7)).cuda(device)) # (num_layers, batch_size, feature dims)
@@ -423,14 +421,14 @@ def trainVideoAttTarget(model, train_loader,mse_loss, bcelogit_loss, optimizer, 
       X_pad_sizes_slice = X_pad_sizes[i:i + chunk_size]
       curr_length = np.sum(X_pad_sizes_slice.cpu().detach().numpy())
       # slice padded data
-      X_pad_data_slice_img = X_pad_data_img[last_index:last_index + curr_length].cuda(device)
-      X_pad_data_slice_depth_img = X_pad_data_img_depth[last_index:last_index + curr_length].cuda(device)
-      X_pad_data_slice_head = X_pad_data_head[last_index:last_index + curr_length].cuda(device)
-      X_pad_data_slice_face = X_pad_data_face[last_index:last_index + curr_length].cuda(device)
-      X_pad_data_slice_left_eye = X_pad_data_left_eye[last_index:last_index + curr_length].cuda(device)
-      X_pad_data_slice_right_eye = X_pad_data_right_eye[last_index:last_index + curr_length].cuda(device)
-      Y_pad_data_slice_heatmap = Y_pad_data_heatmap[last_index:last_index + curr_length].cuda(device)
-      Y_pad_data_slice_inout = Y_pad_data_inout[last_index:last_index + curr_length].cuda(device)
+      frame_sequence_slice = frame_sequence[last_index:last_index + curr_length].cuda(device)
+      depth_frame_sequence_slice = depth_frame_sequence[last_index:last_index + curr_length].cuda(device)
+      head_loc_sequence_slice = head_loc_sequence[last_index:last_index + curr_length].cuda(device)
+      face_sequence_slice = face_sequence[last_index:last_index + curr_length].cuda(device)
+      left_eye_sequence_slice = left_eye_sequence[last_index:last_index + curr_length].cuda(device)
+      right_eye_sequence_slice = right_eye_sequence[last_index:last_index + curr_length].cuda(device)
+      gt_heatmap_sequence_slice = gt_heatmap_sequence[last_index:last_index + curr_length].cuda(device)
+      gt_inout_sequence_slice = gt_inout_sequence[last_index:last_index + curr_length].cuda(device)
       last_index += curr_length
 
       # detach previous hidden states to stop gradient flow
@@ -438,8 +436,8 @@ def trainVideoAttTarget(model, train_loader,mse_loss, bcelogit_loss, optimizer, 
                   hx[1][:, :min(X_pad_sizes_slice[0], previous_hx_size), :, :, :].detach())
 
       # forward pass
-      deconv, inout_val, hx = model(X_pad_data_slice_img, X_pad_data_slice_depth_img, X_pad_data_slice_head, X_pad_data_slice_face, \
-                                                X_pad_data_slice_left_eye, X_pad_data_slice_right_eye, hidden_scene=prev_hx, batch_sizes=X_pad_sizes_slice)
+      deconv, inout_val, hx = model(frame_sequence_slice, depth_frame_sequence_slice, head_loc_sequence_slice, face_sequence_slice, \
+                                                      left_eye_sequence_slice, right_eye_sequence_slice, hidden_scene=prev_hx, batch_sizes=X_pad_sizes_slice)
 
 
         #print(type(deconv), type(inout_val), type(hx))
@@ -447,14 +445,14 @@ def trainVideoAttTarget(model, train_loader,mse_loss, bcelogit_loss, optimizer, 
         
       # compute loss
           # l2 loss computed only for inside case
-      l2_loss = mse_loss(deconv.squeeze(1), Y_pad_data_slice_heatmap) * 10000 
+      l2_loss = mse_loss(deconv.squeeze(1), gt_heatmap_sequence_slice) * 10000 
       l2_loss = torch.mean(l2_loss, dim=1)
       l2_loss = torch.mean(l2_loss, dim=1)
-      Y_pad_data_slice_inout = Y_pad_data_slice_inout.cuda(device).to(torch.float).squeeze()
-      l2_loss = torch.mul(l2_loss, Y_pad_data_slice_inout) # zero out loss when it's outside gaze case
-      l2_loss = torch.sum(l2_loss)/torch.sum(Y_pad_data_slice_inout)
+      gt_inout_sequence_slice = gt_inout_sequence_slice.cuda(device).to(torch.float).squeeze()
+      l2_loss = torch.mul(l2_loss, gt_inout_sequence_slice) # zero out loss when it's outside gaze case
+      l2_loss = torch.sum(l2_loss)/torch.sum(gt_inout_sequence_slice)
           # cross entropy loss for in vs out
-      BCE_loss = bcelogit_loss(inout_val.squeeze(), Y_pad_data_slice_inout.squeeze())*100
+      BCE_loss = bcelogit_loss(inout_val.squeeze(), gt_inout_sequence_slice.squeeze())*100
 
       total_loss = l2_loss + BCE_loss
       total_loss.backward() # loss accumulation
@@ -466,7 +464,7 @@ def trainVideoAttTarget(model, train_loader,mse_loss, bcelogit_loss, optimizer, 
       previous_hx_size = X_pad_sizes_slice[-1]
 
       
-      print("Epoch:{:04d}\tstep:{:06d}/{:06d}\ttraining loss: (l2){:.4f} (Xent){:.4f}".format(ep, batch+1, len(train_loader), l2_loss, Xent_loss))
+      print("Epoch:{:04d}\tstep:{:06d}/{:06d}\ttraining loss: (l2){:.4f} (Xent){:.4f}".format(ep, batch+1, len(train_loader), l2_loss, BCE_loss))
   return 0
 
 
