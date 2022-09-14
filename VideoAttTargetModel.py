@@ -61,7 +61,7 @@ class BottleneckConvLSTM(nn.Module):
 
 
 class Complete_Model(nn.Module):
-    # Define a ResNet 50-ish arch
+ 
     def __init__(self, block=BottleneckConvLSTM, num_lstm_layers = 1, bidirectional = False, layers_scene = [3, 4, 6, 3, 2], layers_face = [3, 4, 6, 3, 2], layers_depth = [3, 4, 6, 3, 2]):
         # Resnet Feature Extractor
         self.inplanes_scene = 64
